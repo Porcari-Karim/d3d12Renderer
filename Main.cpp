@@ -1,32 +1,31 @@
-#include "helpers/WinInclude.h"
-#include <debug/DebugLayer.h>
 #include <iostream>
-
 #include <algorithm>
 #include <cassert>
 #include <chrono>
 
+#include <helpers/WinInclude.h>
+#include <debug/DXDebugLayer.h>
 #include <helpers/Helpers.h>
 #include <window/Window.h>
 #include <window/Input.h>
+#include <renderer/DXContext.h>
 
-using namespace Microsoft::WRL;
 
 int main()
 {
-	xwf::DebugLayer::Get().Init();
-	xwf::Window::init();
-	xwf::Window wnd(L"Test WIndow");
+	xwf::DXDebugLayer::Get().Init();
 
+	if (xwf::DXContext::Get().Init())
 	{
-	ComPtr<ID3D12Device9> device;
-	D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device));
+		xwf::DXContext::Get().GetDevice() = nullptr;
+		xwf::Window::init();
+		xwf::Window wnd(L"Test WIndow");
+		while (wnd.update()) {
+			
+		}
 
-	while (wnd.update()) {
-		if (xwf::Input::isKeyPressed(XWF_A))
-			std::cout << "A\n";
+		xwf::DXContext::Get().Shutdown();
 	}
-	}
-	xwf::DebugLayer::Get().Shutdown();
+	xwf::DXDebugLayer::Get().Shutdown();
 	std::cout << "Exited normally\n";
 }
