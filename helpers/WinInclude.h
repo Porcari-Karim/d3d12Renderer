@@ -2,7 +2,6 @@
 #define	NOMINMAX
 #include <Windows.h>
 
-#include <Windows.h>
 // DirectX 12 specific headers.
 
 #include <d3d12.h>
