@@ -12,7 +12,7 @@ namespace xwf {
 		Win32Window operator=(const Win32Window&) = delete;
 		static void Init(const wchar_t*);
 		bool update();
-		HWND getHWND();
+		static HWND getHWND();
 
 		inline static Win32Window& Get() 
 		{

@@ -90,7 +90,7 @@ namespace xwf {
 
     HWND Win32Window::getHWND()
     {
-        return hwnd;
+        return Get().hwnd;
     }
 
 }

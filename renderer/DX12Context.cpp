@@ -38,7 +38,7 @@ bool xwf::DX12Context::Init()
         return false;
 
     //dxgi
-    hr = CreateDXGIFactory(IID_PPV_ARGS(&m_factory));
+    hr = CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, IID_PPV_ARGS(&m_factory));
     if (FAILED(hr))
         return false;
 
@@ -51,21 +51,22 @@ bool xwf::DX12Context::Init()
     swapchainDesc.SampleDesc.Count = 1;
     swapchainDesc.SampleDesc.Quality = 0;
     swapchainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    swapchainDesc.BufferCount = 1;
-    swapchainDesc.Scaling = DXGI_SCALING_ASPECT_RATIO_STRETCH;
-    swapchainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+    swapchainDesc.BufferCount = 2;
+    swapchainDesc.Scaling = DXGI_SCALING_STRETCH;
+    swapchainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
     swapchainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
     swapchainDesc.Flags = 0;
 
-    IDXGISwapChain1* pSwapChain = m_swapChain.Get();
-    IDXGISwapChain1** ppSwapChain = &pSwapChain;
+    ComPtr<IDXGISwapChain1> swapChain1;
 
-    hr = m_factory->CreateSwapChainForHwnd(m_commandQueue.Get(), Win32Window::Get().getHWND(), &swapchainDesc, nullptr, nullptr, ppSwapChain);
+    hr = m_factory->CreateSwapChainForHwnd(m_commandQueue.Get(), Win32Window::getHWND(), &swapchainDesc, nullptr, nullptr, &swapChain1);
     if (FAILED(hr))
-    {
-        std::cout << hr << std::endl;
         return false;
-    }
+
+    hr = swapChain1.As(&m_swapChain);
+    if (FAILED(hr))
+        return false;
+
 
     return true;
 }
