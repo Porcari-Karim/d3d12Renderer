@@ -21,7 +21,7 @@
     <ClCompile Include="helpers\d3dx12.h">
       <Filter>Fichiers sources</Filter>
     </ClCompile>
-    <ClCompile Include="window\Window.cpp">
+    <ClCompile Include="window\Win32Window.cpp">
       <Filter>Fichiers sources</Filter>
     </ClCompile>
     <ClCompile Include="window\Input.cpp">
@@ -30,7 +30,7 @@
     <ClCompile Include="debug\DXDebugLayer.cpp">
       <Filter>Fichiers sources</Filter>
     </ClCompile>
-    <ClCompile Include="renderer\DXContext.cpp">
+    <ClCompile Include="renderer\DX12Context.cpp">
       <Filter>Fichiers sources</Filter>
     </ClCompile>
   </ItemGroup>
@@ -38,7 +38,7 @@
     <ClInclude Include="helpers\Helpers.h">
       <Filter>Fichiers d%27en-tête</Filter>
     </ClInclude>
-    <ClInclude Include="window\Window.h">
+    <ClInclude Include="window\Win32Window.h">
       <Filter>Fichiers d%27en-tête</Filter>
     </ClInclude>
     <ClInclude Include="window\Input.h">
@@ -56,7 +56,10 @@
     <ClInclude Include="debug\DXDebugLayer.h">
       <Filter>Fichiers d%27en-tête</Filter>
     </ClInclude>
-    <ClInclude Include="renderer\DXContext.h">
+    <ClInclude Include="renderer\DX12Context.h">
+      <Filter>Fichiers d%27en-tête</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer\XWFContext.h">
       <Filter>Fichiers d%27en-tête</Filter>
     </ClInclude>
   </ItemGroup>

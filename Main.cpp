@@ -6,25 +6,25 @@
 #include <helpers/WinInclude.h>
 #include <debug/DXDebugLayer.h>
 #include <helpers/Helpers.h>
-#include <window/Window.h>
+#include <window/Win32Window.h>
 #include <window/Input.h>
-#include <renderer/DXContext.h>
+#include <renderer/DX12Context.h>
 
 
 int main()
 {
 	xwf::DXDebugLayer::Get().Init();
 
-	if (xwf::DXContext::Get().Init())
+	if (xwf::DX12Context::Get().Init())
 	{
-		xwf::DXContext::Get().GetDevice() = nullptr;
-		xwf::Window::init();
-		xwf::Window wnd(L"Test WIndow");
-		while (wnd.update()) {
-			
+		xwf::Win32Window::Init(L"Test WIndow");
+		while (xwf::Win32Window::Get().update()) {
+			auto* cmdList = xwf::DX12Context::Get().InitCommandList();
+			xwf::DX12Context::Get().ExecuteCommandList();
+			//xwf::DX12Context::Get().GetSwapchain()->Present(1, 0);
 		}
 
-		xwf::DXContext::Get().Shutdown();
+		xwf::DX12Context::Get().Shutdown();
 	}
 	xwf::DXDebugLayer::Get().Shutdown();
 	std::cout << "Exited normally\n";

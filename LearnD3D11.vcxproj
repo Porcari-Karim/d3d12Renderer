@@ -154,18 +154,19 @@
   <ItemGroup>
     <ClCompile Include="debug\DXDebugLayer.cpp" />
     <ClCompile Include="helpers\d3dx12.h" />
-    <ClCompile Include="renderer\DXContext.cpp" />
+    <ClCompile Include="renderer\DX12Context.cpp" />
     <ClCompile Include="window\Input.cpp" />
     <ClCompile Include="Main.cpp" />
-    <ClCompile Include="window\Window.cpp" />
+    <ClCompile Include="window\Win32Window.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug\DXDebugLayer.h" />
     <ClInclude Include="helpers\Helpers.h" />
-    <ClInclude Include="renderer\DXContext.h" />
+    <ClInclude Include="renderer\DX12Context.h" />
+    <ClInclude Include="renderer\XWFContext.h" />
     <ClInclude Include="window\Input.h" />
     <ClInclude Include="renderer\D3DRenderer.h" />
-    <ClInclude Include="window\Window.h" />
+    <ClInclude Include="window\Win32Window.h" />
     <ClInclude Include="helpers\WinInclude.h" />
     <ClInclude Include="window\WinKeyCodes.h" />
   </ItemGroup>

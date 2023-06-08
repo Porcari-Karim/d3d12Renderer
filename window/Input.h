@@ -28,9 +28,9 @@ namespace xwf {
 
 	private:
 		static InputMap inputMap;
-
+#ifdef WIN32
 		friend LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-		
+#endif
 		static void processKeyboardInput(uint32_t keycode, bool wasDown, bool isDown);
 
 	};
