@@ -1,5 +1,5 @@
 #pragma once
-
+#ifdef _WIN32
 #include "helpers/WinInclude.h"
 #include <string>
 
@@ -26,3 +26,4 @@ namespace xwf {
 	};
 
 }
+#endif

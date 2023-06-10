@@ -24,6 +24,7 @@ namespace xwf {
 	}
 	void Input::processKeyboardInput(uint32_t keycode, bool wasDown, bool isDown)
 	{
+#ifdef _WIN32
 		if (wasDown != isDown)
 		{
 			if (keycode >= 'A' && keycode <= 'Z')
@@ -119,6 +120,7 @@ namespace xwf {
 				inputMap.map[XWF_TILDE].wasDown = wasDown;
 			}
 		}
+#endif
 	}
 	
 }

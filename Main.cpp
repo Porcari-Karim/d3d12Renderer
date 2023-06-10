@@ -23,6 +23,7 @@ int main()
 			auto* cmdList = xwf::DX12Context::Get().InitCommandList();
 			xwf::DX12Context::Get().ExecuteCommandList();
 			xwf::DX12Context::Get().GetSwapchain()->Present(1, 0);
+	
 		}
 
 		xwf::DX12Context::Get().Shutdown();

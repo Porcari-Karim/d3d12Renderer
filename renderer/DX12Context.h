@@ -1,4 +1,5 @@
 #pragma once
+#ifdef _WIN32
 #include <helpers/WinInclude.h>
 #include <window/Win32Window.h>
 
@@ -25,12 +26,13 @@ namespace xwf {
 			return m_commandQueue;
 		}
 
-		inline ComPtr<IDXGISwapChain1>& GetSwapchain()
+		inline ComPtr<IDXGISwapChain4>& GetSwapchain()
 		{
 			return m_swapChain;
 		}
 
 	private:
+		ComPtr<IDXGIFactory7> m_factory;
 
 		ComPtr<ID3D12Device9> m_device;
 		ComPtr<ID3D12CommandQueue> m_commandQueue;
@@ -38,9 +40,9 @@ namespace xwf {
 		ComPtr<ID3D12CommandAllocator> m_cmdAllocator;
 		ComPtr<ID3D12GraphicsCommandList6> m_cmdList;
 
-		ComPtr<IDXGIFactory7> m_factory;
-		ComPtr<IDXGISwapChain1> m_swapChain;
-		ComPtr<ID3D12Resource2> m_buffer;
+		ComPtr<IDXGISwapChain4> m_swapChain;
+		ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
+		ComPtr<ID3D12Resource2> m_buffers[2];
 
 		ComPtr<ID3D12Fence1> m_fence;
 		UINT64 m_fenceValue = 0;
@@ -60,3 +62,5 @@ namespace xwf {
 		DX12Context() = default;
 	};
 }
+
+#endif

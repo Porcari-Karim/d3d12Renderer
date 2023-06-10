@@ -1,3 +1,4 @@
+#ifdef _WIN32
 #include "Win32Window.h"
 #include <cassert>
 #include <exception>
@@ -94,3 +95,5 @@ namespace xwf {
     }
 
 }
+
+#endif
