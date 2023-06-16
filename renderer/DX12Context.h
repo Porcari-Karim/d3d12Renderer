@@ -15,6 +15,8 @@ namespace xwf {
 		void SignalAndWait();
 		ID3D12GraphicsCommandList6* InitCommandList();
 		void ExecuteCommandList();
+		void PopulateResourceData(ID3D12Resource* pResource, const void * pData, size_t size);
+		static std::vector<char> ReadBytecodeData(const std::string& filename);
 
 		inline ComPtr<ID3D12Device9>& GetDevice()
 		{
@@ -30,6 +32,8 @@ namespace xwf {
 		{
 			return m_swapChain;
 		}
+
+		void TestRendering();
 
 	private:
 		ComPtr<IDXGIFactory7> m_factory;

@@ -63,4 +63,8 @@
       <Filter>Fichiers d%27en-tête</Filter>
     </ClInclude>
   </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="assets\Shaders\vertex.hlsl" />
+    <FxCompile Include="assets\Shaders\pixel.hlsl" />
+  </ItemGroup>
 </Project>

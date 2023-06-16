@@ -1,6 +1,8 @@
 #ifdef _WIN32
 #include "DX12Context.h"
 #include <iostream>
+#include <fstream>
+#include <stdint.h>
 
 #define ROUND256(structure) (sizeof(structure) + 255 ) & ~ 255
 
@@ -127,6 +129,9 @@ bool xwf::DX12Context::Init()
 
 void xwf::DX12Context::Shutdown()
 {
+    m_rtvHeap.ReleaseAndGetAddressOf();
+    m_buffers[0].ReleaseAndGetAddressOf();
+    m_buffers[1].ReleaseAndGetAddressOf();
     m_swapChain.ReleaseAndGetAddressOf();
     m_factory.ReleaseAndGetAddressOf();
     if (m_fenceEvent)
@@ -169,6 +174,128 @@ void xwf::DX12Context::ExecuteCommandList()
         m_commandQueue->ExecuteCommandLists(1, lists);
         SignalAndWait();
     }
+}
+
+void xwf::DX12Context::PopulateResourceData(ID3D12Resource* pResource, const void* pData, size_t size)
+{
+    UINT8* pDataBegin;
+    
+    //No read
+    D3D12_RANGE readRange = {};
+    readRange.Begin = 0;
+    readRange.End = 0;
+
+    HRESULT hr = pResource->Map(0, &readRange, reinterpret_cast<void**>(&pDataBegin));
+    if (FAILED(hr))
+    {
+        std::cout << "Failed to copu DX12 Resource Data\n";
+        return;
+    }
+    memcpy(pDataBegin, pData, size);
+    pResource->Unmap(0, nullptr);
+
+}
+
+std::vector<char> xwf::DX12Context::ReadBytecodeData(const std::string& filename)
+{
+    std::ifstream file(filename, std::ios::ate | std::ios::binary);
+    bool exists = (bool)file;
+
+    if (!exists || !file.is_open())
+    {
+        throw std::runtime_error("failed to open file!");
+    }
+
+    size_t fileSize = (size_t)file.tellg();
+    std::vector<char> buffer(fileSize);
+
+    file.seekg(0);
+    file.read(buffer.data(), fileSize);
+
+    file.close();
+
+    return buffer;
+}
+
+struct Vertex {
+    float position[3];
+    float color[3];
+};
+
+void xwf::DX12Context::TestRendering()
+{
+
+    Vertex vertexBufferData[] = {
+        {0.0, 0.5, 1.0}, {1.0, 0.0, 0.0},
+        {0.5, -0.5, 1.0}, {0.0, 1.0, 0.0},
+        {-0.5, -0.5, 1.0}, {0.0, 0.0, 1.0}
+    };
+
+    uint32_t indexBufferData[] = { 0u, 1u, 2u };
+
+    D3D12_HEAP_DESC heapDescriptor = {};
+    heapDescriptor.Properties.Type = D3D12_HEAP_TYPE_UPLOAD;
+
+    ComPtr<ID3D12Resource> pVertexBuffer;
+    ComPtr<ID3D12Resource> pIndexBuffer;
+
+    D3D12_VERTEX_BUFFER_VIEW vertexBufferView; // To pass to our pipeline;
+    D3D12_INDEX_BUFFER_VIEW indexBufferView;
+    
+    D3D12_RESOURCE_DESC bufferDesc = {};
+    bufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    bufferDesc.Format = DXGI_FORMAT_UNKNOWN;
+    bufferDesc.MipLevels = 1;
+    bufferDesc.DepthOrArraySize = 1;
+    bufferDesc.Width = sizeof(vertexBufferData);
+    bufferDesc.Height = 1;
+    bufferDesc.SampleDesc.Count = 1;
+    bufferDesc.SampleDesc.Quality = 0;
+    bufferDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    
+    
+
+    HRESULT hr = m_device->CreateCommittedResource(&heapDescriptor.Properties, D3D12_HEAP_FLAG_NONE, &bufferDesc, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, nullptr, IID_PPV_ARGS(&pVertexBuffer));
+    if (FAILED(hr))
+    {
+        std::cout << "Failed to create DX12 Resource (Vertex Buffer)\n";
+        std::exit(-1);
+    }
+    PopulateResourceData(pVertexBuffer.Get(), vertexBufferData, sizeof(vertexBufferData));
+    vertexBufferView.BufferLocation = pVertexBuffer->GetGPUVirtualAddress();
+    vertexBufferView.SizeInBytes = sizeof(vertexBufferData);
+    vertexBufferView.StrideInBytes = sizeof(Vertex);
+
+    //Change the bufferDesc width to the indexBufferData width since all the other members are the same so we can use the same struct.
+    bufferDesc.Width = sizeof(indexBufferData);
+
+    hr = m_device->CreateCommittedResource(&heapDescriptor.Properties, D3D12_HEAP_FLAG_NONE, &bufferDesc, D3D12_RESOURCE_STATE_INDEX_BUFFER, nullptr, IID_PPV_ARGS(&pIndexBuffer));
+
+    if (FAILED(hr))
+    {
+        std::cout << "Failed to create DX12 Resource (Index Buffer)\n";
+        std::exit(-1);
+    }
+    PopulateResourceData(pIndexBuffer.Get(), indexBufferData, sizeof(indexBufferData));
+    indexBufferView.BufferLocation = pIndexBuffer->GetGPUVirtualAddress();
+    indexBufferView.Format = DXGI_FORMAT_R32_UINT;
+    indexBufferView.SizeInBytes = sizeof(indexBufferData);
+
+
+    std::vector<char> vertexShaderBlob = ReadBytecodeData("vertex.cso");
+    D3D12_SHADER_BYTECODE vertexShaderBytecode;
+    vertexShaderBytecode.BytecodeLength = vertexShaderBlob.size();
+    vertexShaderBytecode.pShaderBytecode = vertexShaderBlob.data();
+
+    std::vector<char> pixelShaderBlob = ReadBytecodeData("pixel.cso");
+    D3D12_SHADER_BYTECODE pixelShaderBytecode;
+    pixelShaderBytecode.BytecodeLength = pixelShaderBlob.size();
+    pixelShaderBytecode.pShaderBytecode = pixelShaderBlob.data();
+
+    // Execute Commands
+    auto* cmdList = InitCommandList();
+    ExecuteCommandList();
+    m_swapChain->Present(1, 0);
 }
 
 #endif

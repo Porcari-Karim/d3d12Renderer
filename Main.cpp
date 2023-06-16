@@ -15,18 +15,21 @@ int main()
 {
 	xwf::DXDebugLayer::Get().Init();
 
-	xwf::Win32Window::Init(L"Test WIndow");
-	std::cout << xwf::Win32Window::getHWND() << std::endl;
-	if (xwf::DX12Context::Get().Init())
 	{
-		while (xwf::Win32Window::Get().update()) {
-			auto* cmdList = xwf::DX12Context::Get().InitCommandList();
-			xwf::DX12Context::Get().ExecuteCommandList();
-			xwf::DX12Context::Get().GetSwapchain()->Present(1, 0);
-	
-		}
+		xwf::Win32Window::Init(L"Test WIndow");
+		std::cout << xwf::Win32Window::getHWND() << std::endl;
+		if (xwf::DX12Context::Get().Init())
+		{
+            
 
-		xwf::DX12Context::Get().Shutdown();
+			while (xwf::Win32Window::Get().update()) {
+				
+				xwf::DX12Context::Get().TestRendering();
+
+			}
+
+			xwf::DX12Context::Get().Shutdown();
+		}
 	}
 	xwf::DXDebugLayer::Get().Shutdown();
 	std::cout << "Exited normally\n";
