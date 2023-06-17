@@ -1,4 +1,4 @@
-#ifdef _WIN32
+﻿#ifdef _WIN32
 #include "DX12Context.h"
 #include <iostream>
 #include <fstream>
@@ -28,7 +28,7 @@ bool xwf::DX12Context::Init()
     }
 
     D3D12_COMMAND_QUEUE_DESC queueDesc = {};
-    queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT; // Ou le type de file d'attente appropri�
+    queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT; // Ou le type de file d'attente approprié
     queueDesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
     queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
     queueDesc.NodeMask = 0;
@@ -281,7 +281,7 @@ void xwf::DX12Context::TestRendering()
     indexBufferView.Format = DXGI_FORMAT_R32_UINT;
     indexBufferView.SizeInBytes = sizeof(indexBufferData);
 
-
+    // Shaders
     std::vector<char> vertexShaderBlob = ReadBytecodeData("vertex.cso");
     D3D12_SHADER_BYTECODE vertexShaderBytecode;
     vertexShaderBytecode.BytecodeLength = vertexShaderBlob.size();
@@ -292,8 +292,87 @@ void xwf::DX12Context::TestRendering()
     pixelShaderBytecode.BytecodeLength = pixelShaderBlob.size();
     pixelShaderBytecode.pShaderBytecode = pixelShaderBlob.data();
 
+    // Empty root signature since we don't pass any data except our vertex buffer to our shaders
+    D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
+    rootSignatureDesc.NumParameters = 0;
+    rootSignatureDesc.NumStaticSamplers = 0;
+    rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+
+    ID3DBlob* pSignatureBlob = nullptr;
+    ID3DBlob* pErrorBlob = nullptr;
+    ComPtr<ID3D12RootSignature> pRootSignature;
+
+    D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &pSignatureBlob, &pErrorBlob);
+
+    hr = m_device->CreateRootSignature(0, pSignatureBlob->GetBufferPointer(), pSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&pRootSignature));
+    if (FAILED(hr))
+    {
+        std::cout << "Failed to create Directx12 Root Signature \n";
+        std::exit(-1);
+    }
+
+    ComPtr<ID3D12PipelineState> pPipelineState;
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineStateDesc = {};
+
+    pipelineStateDesc.pRootSignature = pRootSignature.Get();
+    pipelineStateDesc.VS = vertexShaderBytecode;
+    pipelineStateDesc.PS = pixelShaderBytecode;
+
+    //Rasterisation
+    pipelineStateDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+    pipelineStateDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+    pipelineStateDesc.RasterizerState.DepthClipEnable = TRUE;
+    pipelineStateDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+
+    //Blend state
+    D3D12_BLEND_DESC blendDesc;
+
+    const D3D12_RENDER_TARGET_BLEND_DESC defaultRenderTargetBlendDesc = {
+    FALSE,
+    FALSE,
+    D3D12_BLEND_ONE,
+    D3D12_BLEND_ZERO,
+    D3D12_BLEND_OP_ADD,
+    D3D12_BLEND_ONE,
+    D3D12_BLEND_ZERO,
+    D3D12_BLEND_OP_ADD,
+    D3D12_LOGIC_OP_NOOP,
+    D3D12_COLOR_WRITE_ENABLE_ALL,
+    };
+    for (UINT i = 0; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
+        blendDesc.RenderTarget[i] = defaultRenderTargetBlendDesc;
+    pipelineStateDesc.BlendState = blendDesc;
+
+    ////
+    pipelineStateDesc.SampleMask = UINT_MAX;
+    pipelineStateDesc.NumRenderTargets = 1;
+    pipelineStateDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+    pipelineStateDesc.SampleDesc.Count = 1;
+
+
+    ///
+    D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
+        {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        {"COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}
+    };
+    pipelineStateDesc.InputLayout = { inputElementDescs, _countof(inputElementDescs) };
+
+    hr = m_device->CreateGraphicsPipelineState(&pipelineStateDesc, IID_PPV_ARGS(&pPipelineState));
+    if (FAILED(hr))
+    {
+        std::cout << "Failed to create DX12 Pipeline State\n";
+        std::exit(-1);
+    }
+
+
+
     // Execute Commands
     auto* cmdList = InitCommandList();
+
+    //cmdList->SetGraphicsRootSignature(pRootSignature.Get());
+    
+    std::cout << m_swapChain->GetCurrentBackBufferIndex() << std::endl;
+
     ExecuteCommandList();
     m_swapChain->Present(1, 0);
 }
