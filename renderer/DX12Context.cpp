@@ -72,7 +72,7 @@ bool xwf::DX12Context::Init()
     DXGI_SWAP_CHAIN_DESC1 swapchainDesc = {};
     swapchainDesc.Width = 0;
     swapchainDesc.Height = 0;
-    swapchainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    swapchainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
     swapchainDesc.Stereo = FALSE;
     swapchainDesc.SampleDesc.Count = 1;
     swapchainDesc.SampleDesc.Quality = 0;
@@ -217,104 +217,13 @@ std::vector<char> xwf::DX12Context::ReadBytecodeData(const std::string& filename
     return buffer;
 }
 
-struct Vertex {
-    float position[3];
-    float color[3];
-};
-
-void xwf::DX12Context::TestRendering()
+void xwf::DX12Context::CreatePipelineState(ID3D12RootSignature* pRootSignature, D3D12_SHADER_BYTECODE vertexShaderBytecode, D3D12_SHADER_BYTECODE pixelShaderBytecode, ID3D12PipelineState** ppPipelineState)
 {
+    static HRESULT hr;
 
-    Vertex vertexBufferData[] = {
-        {0.0, 0.5, 1.0}, {1.0, 0.0, 0.0},
-        {0.5, -0.5, 1.0}, {0.0, 1.0, 0.0},
-        {-0.5, -0.5, 1.0}, {0.0, 0.0, 1.0}
-    };
-
-    uint32_t indexBufferData[] = { 0u, 1u, 2u };
-
-    D3D12_HEAP_DESC heapDescriptor = {};
-    heapDescriptor.Properties.Type = D3D12_HEAP_TYPE_UPLOAD;
-
-    ComPtr<ID3D12Resource> pVertexBuffer;
-    ComPtr<ID3D12Resource> pIndexBuffer;
-
-    D3D12_VERTEX_BUFFER_VIEW vertexBufferView; // To pass to our pipeline;
-    D3D12_INDEX_BUFFER_VIEW indexBufferView;
-    
-    D3D12_RESOURCE_DESC bufferDesc = {};
-    bufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-    bufferDesc.Format = DXGI_FORMAT_UNKNOWN;
-    bufferDesc.MipLevels = 1;
-    bufferDesc.DepthOrArraySize = 1;
-    bufferDesc.Width = sizeof(vertexBufferData);
-    bufferDesc.Height = 1;
-    bufferDesc.SampleDesc.Count = 1;
-    bufferDesc.SampleDesc.Quality = 0;
-    bufferDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-    
-    
-
-    HRESULT hr = m_device->CreateCommittedResource(&heapDescriptor.Properties, D3D12_HEAP_FLAG_NONE, &bufferDesc, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, nullptr, IID_PPV_ARGS(&pVertexBuffer));
-    if (FAILED(hr))
-    {
-        std::cout << "Failed to create DX12 Resource (Vertex Buffer)\n";
-        std::exit(-1);
-    }
-    PopulateResourceData(pVertexBuffer.Get(), vertexBufferData, sizeof(vertexBufferData));
-    vertexBufferView.BufferLocation = pVertexBuffer->GetGPUVirtualAddress();
-    vertexBufferView.SizeInBytes = sizeof(vertexBufferData);
-    vertexBufferView.StrideInBytes = sizeof(Vertex);
-
-    //Change the bufferDesc width to the indexBufferData width since all the other members are the same so we can use the same struct.
-    bufferDesc.Width = sizeof(indexBufferData);
-
-    hr = m_device->CreateCommittedResource(&heapDescriptor.Properties, D3D12_HEAP_FLAG_NONE, &bufferDesc, D3D12_RESOURCE_STATE_INDEX_BUFFER, nullptr, IID_PPV_ARGS(&pIndexBuffer));
-
-    if (FAILED(hr))
-    {
-        std::cout << "Failed to create DX12 Resource (Index Buffer)\n";
-        std::exit(-1);
-    }
-    PopulateResourceData(pIndexBuffer.Get(), indexBufferData, sizeof(indexBufferData));
-    indexBufferView.BufferLocation = pIndexBuffer->GetGPUVirtualAddress();
-    indexBufferView.Format = DXGI_FORMAT_R32_UINT;
-    indexBufferView.SizeInBytes = sizeof(indexBufferData);
-
-    // Shaders
-    std::vector<char> vertexShaderBlob = ReadBytecodeData("vertex.cso");
-    D3D12_SHADER_BYTECODE vertexShaderBytecode;
-    vertexShaderBytecode.BytecodeLength = vertexShaderBlob.size();
-    vertexShaderBytecode.pShaderBytecode = vertexShaderBlob.data();
-
-    std::vector<char> pixelShaderBlob = ReadBytecodeData("pixel.cso");
-    D3D12_SHADER_BYTECODE pixelShaderBytecode;
-    pixelShaderBytecode.BytecodeLength = pixelShaderBlob.size();
-    pixelShaderBytecode.pShaderBytecode = pixelShaderBlob.data();
-
-    // Empty root signature since we don't pass any data except our vertex buffer to our shaders
-    D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
-    rootSignatureDesc.NumParameters = 0;
-    rootSignatureDesc.NumStaticSamplers = 0;
-    rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-
-    ID3DBlob* pSignatureBlob = nullptr;
-    ID3DBlob* pErrorBlob = nullptr;
-    ComPtr<ID3D12RootSignature> pRootSignature;
-
-    D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &pSignatureBlob, &pErrorBlob);
-
-    hr = m_device->CreateRootSignature(0, pSignatureBlob->GetBufferPointer(), pSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&pRootSignature));
-    if (FAILED(hr))
-    {
-        std::cout << "Failed to create Directx12 Root Signature \n";
-        std::exit(-1);
-    }
-
-    ComPtr<ID3D12PipelineState> pPipelineState;
     D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineStateDesc = {};
 
-    pipelineStateDesc.pRootSignature = pRootSignature.Get();
+    pipelineStateDesc.pRootSignature = pRootSignature;
     pipelineStateDesc.VS = vertexShaderBytecode;
     pipelineStateDesc.PS = pixelShaderBytecode;
 
@@ -357,7 +266,7 @@ void xwf::DX12Context::TestRendering()
     };
     pipelineStateDesc.InputLayout = { inputElementDescs, _countof(inputElementDescs) };
 
-    hr = m_device->CreateGraphicsPipelineState(&pipelineStateDesc, IID_PPV_ARGS(&pPipelineState));
+    hr = m_device->CreateGraphicsPipelineState(&pipelineStateDesc, IID_PPV_ARGS(ppPipelineState));
     if (FAILED(hr))
     {
         std::cout << "Failed to create DX12 Pipeline State\n";
@@ -365,13 +274,174 @@ void xwf::DX12Context::TestRendering()
     }
 
 
+}
+
+template <typename T>
+void xwf::DX12Context::CreateBuffer(std::vector<T> vertices, D3D12_RESOURCE_STATES state, ID3D12Resource** buffer)
+{
+    static HRESULT hr;
+
+    D3D12_RESOURCE_DESC bufferDesc = {};
+    bufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    bufferDesc.Format = DXGI_FORMAT_UNKNOWN;
+    bufferDesc.MipLevels = 1;
+    bufferDesc.DepthOrArraySize = 1;
+    bufferDesc.Width = vertices.size() * sizeof(T);
+    bufferDesc.Height = 1;
+    bufferDesc.SampleDesc.Count = 1;
+    bufferDesc.SampleDesc.Quality = 0;
+    bufferDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+    D3D12_HEAP_PROPERTIES heapProps = {};
+    heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+
+    hr = m_device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &bufferDesc, D3D12_RESOURCE_STATE_INDEX_BUFFER, nullptr, IID_PPV_ARGS(buffer));
+
+    if (FAILED(hr))
+    {
+        std::cout << "Failed to create DX12 Resource (Index Buffer)\n";
+        std::exit(-1);
+    }
+    PopulateResourceData(*buffer, vertices.data(), vertices.size() * sizeof(T));
+}
+
+
+
+void xwf::DX12Context::TestRendering()
+{
+    HRESULT hr;
+
+    std::vector<Vertex> vertexBufferData = {
+        {{0.0, 0.5, 1.0}, {1.0, 0.0, 0.0}},
+        {{0.5, -0.5, 1.0}, {0.0, 1.0, 0.0}},
+        {{-0.5, -0.5, 1.0}, {0.0, 0.0, 1.0}}
+    };
+
+    std::vector<uint32_t> indexBufferData = { 0u, 1u, 2u };
+
+    D3D12_HEAP_PROPERTIES heapProps = {};
+    heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+
+    ComPtr<ID3D12Resource> pVertexBuffer;
+    ComPtr<ID3D12Resource> pIndexBuffer;
+
+    D3D12_VERTEX_BUFFER_VIEW vertexBufferView; // To pass to our pipeline;
+    D3D12_INDEX_BUFFER_VIEW indexBufferView;    
+
+    CreateBuffer<Vertex>(vertexBufferData, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, pVertexBuffer.GetAddressOf());
+    vertexBufferView.BufferLocation = pVertexBuffer->GetGPUVirtualAddress();    
+    vertexBufferView.SizeInBytes = vertexBufferData.size() * sizeof(Vertex);
+    vertexBufferView.StrideInBytes = sizeof(Vertex);
+
+
+    CreateBuffer<uint32_t>(indexBufferData, D3D12_RESOURCE_STATE_INDEX_BUFFER, pIndexBuffer.GetAddressOf());
+    indexBufferView.BufferLocation = pIndexBuffer->GetGPUVirtualAddress();
+    indexBufferView.Format = DXGI_FORMAT_R32_UINT;
+    indexBufferView.SizeInBytes = sizeof(indexBufferData);
+
+    // Shaders
+    std::vector<char> vertexShaderBlob = ReadBytecodeData("vertex.cso");
+    D3D12_SHADER_BYTECODE vertexShaderBytecode;
+    vertexShaderBytecode.BytecodeLength = vertexShaderBlob.size();
+    vertexShaderBytecode.pShaderBytecode = vertexShaderBlob.data();
+
+    std::vector<char> pixelShaderBlob = ReadBytecodeData("pixel.cso");
+    D3D12_SHADER_BYTECODE pixelShaderBytecode;
+    pixelShaderBytecode.BytecodeLength = pixelShaderBlob.size();
+    pixelShaderBytecode.pShaderBytecode = pixelShaderBlob.data();
+
+    // Empty root signature since we don't pass any data except our vertex buffer to our shaders
+    D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
+    rootSignatureDesc.NumParameters = 0;
+    rootSignatureDesc.NumStaticSamplers = 0;
+    rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+
+    ID3DBlob* pSignatureBlob = nullptr;
+    ID3DBlob* pErrorBlob = nullptr;
+    ComPtr<ID3D12RootSignature> pRootSignature;
+
+    D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &pSignatureBlob, &pErrorBlob);
+
+    hr = m_device->CreateRootSignature(0, pSignatureBlob->GetBufferPointer(), pSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&pRootSignature));
+    if (FAILED(hr))
+    {
+        std::cout << "Failed to create Directx12 Root Signature \n";
+        std::exit(-1);
+    }
+
+    ComPtr<ID3D12PipelineState> pPipelineState;
+    CreatePipelineState(pRootSignature.Get(), vertexShaderBytecode, pixelShaderBytecode, pPipelineState.GetAddressOf());
+
+
 
     // Execute Commands
     auto* cmdList = InitCommandList();
+    cmdList->SetPipelineState(pPipelineState.Get());
+    cmdList->SetGraphicsRootSignature(pRootSignature.Get());
 
-    //cmdList->SetGraphicsRootSignature(pRootSignature.Get());
+    unsigned int rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    int frameIndex = m_swapChain->GetCurrentBackBufferIndex();
+    // 🖼️ Indicate that the back buffer will be used as a render target.
+    D3D12_RESOURCE_BARRIER renderTargetBarrier;
+    renderTargetBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    renderTargetBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+    renderTargetBarrier.Transition.pResource = m_buffers[frameIndex].Get();
+    renderTargetBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+    renderTargetBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+    renderTargetBarrier.Transition.Subresource =
+        D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+    cmdList->ResourceBarrier(1, &renderTargetBarrier);
+
+    D3D12_CPU_DESCRIPTOR_HANDLE
+        rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
+    rtvHandle.ptr = rtvHandle.ptr + (frameIndex * rtvDescriptorSize);
+    cmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+
+
+    // 🎥 Record raster commands.
+    RECT rect;
+    GetWindowRect(xwf::Win32Window::getHWND(), &rect);
+    auto width = rect.right - rect.left;
+    auto height = rect.bottom - rect.top;
+
+    D3D12_VIEWPORT viewport;
+    D3D12_RECT surfaceSize;
+
+    surfaceSize.left = 0;
+    surfaceSize.top = 0;
+    surfaceSize.right = static_cast<LONG>(width);
+    surfaceSize.bottom = static_cast<LONG>(height);
+
+    viewport.TopLeftX = 0.0f;
+    viewport.TopLeftY = 0.0f;
+    viewport.Width = static_cast<float>(width);
+    viewport.Height = static_cast<float>(height);
+    viewport.MinDepth = .1f;
+    viewport.MaxDepth = 1000.f;
+
+    const float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
+    cmdList->RSSetViewports(1, &viewport);
+    cmdList->RSSetScissorRects(1, &surfaceSize);
+    cmdList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+    cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    cmdList->IASetVertexBuffers(0, 1, &vertexBufferView);
+    cmdList->IASetIndexBuffer(&indexBufferView);
+
+    cmdList->DrawIndexedInstanced(3, 1, 0, 0, 0);
+
+    // 🖼️ Indicate that the back buffer will now be used to present.
+    D3D12_RESOURCE_BARRIER presentBarrier;
+    presentBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    presentBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+    presentBarrier.Transition.pResource = m_buffers[frameIndex].Get();
+    presentBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+    presentBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+    presentBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+
+    cmdList->ResourceBarrier(1, &presentBarrier);
+
     
-    std::cout << m_swapChain->GetCurrentBackBufferIndex() << std::endl;
+    //std::cout << m_swapChain->GetCurrentBackBufferIndex() << std::endl;
 
     ExecuteCommandList();
     m_swapChain->Present(1, 0);

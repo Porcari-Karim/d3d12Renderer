@@ -10,6 +10,11 @@ namespace xwf {
 	class DX12Context {
 
 	public:
+		struct Vertex {
+			float position[3];
+			float color[3];
+		};
+
 		bool Init();
 		void Shutdown();
 		void SignalAndWait();
@@ -17,6 +22,11 @@ namespace xwf {
 		void ExecuteCommandList();
 		void PopulateResourceData(ID3D12Resource* pResource, const void * pData, size_t size);
 		static std::vector<char> ReadBytecodeData(const std::string& filename);
+
+		template <typename T>
+		void CreateBuffer(std::vector<T> vertices, D3D12_RESOURCE_STATES state, ID3D12Resource** buffer);
+
+		void CreatePipelineState(ID3D12RootSignature* pRootSignature, D3D12_SHADER_BYTECODE vertexShaderBytecode, D3D12_SHADER_BYTECODE pixelShaderBytecode, ID3D12PipelineState** ppPipelineState);
 
 		inline ComPtr<ID3D12Device9>& GetDevice()
 		{
