@@ -33,6 +33,15 @@
     <ClCompile Include="renderer\DX12Context.cpp">
       <Filter>Fichiers sources</Filter>
     </ClCompile>
+    <ClCompile Include="renderer\DX12Mesh.cpp">
+      <Filter>Fichiers sources</Filter>
+    </ClCompile>
+    <ClCompile Include="renderer\DX12Renderer.cpp">
+      <Filter>Fichiers sources</Filter>
+    </ClCompile>
+    <ClCompile Include="renderer\DX12Pipeline.cpp">
+      <Filter>Fichiers sources</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="helpers\Helpers.h">
@@ -47,9 +56,6 @@
     <ClInclude Include="window\WinKeyCodes.h">
       <Filter>Fichiers d%27en-tête</Filter>
     </ClInclude>
-    <ClInclude Include="renderer\D3DRenderer.h">
-      <Filter>Fichiers d%27en-tête</Filter>
-    </ClInclude>
     <ClInclude Include="helpers\WinInclude.h">
       <Filter>Fichiers d%27en-tête</Filter>
     </ClInclude>
@@ -59,7 +65,13 @@
     <ClInclude Include="renderer\DX12Context.h">
       <Filter>Fichiers d%27en-tête</Filter>
     </ClInclude>
-    <ClInclude Include="renderer\XWFContext.h">
+    <ClInclude Include="renderer\DX12Mesh.h">
+      <Filter>Fichiers d%27en-tête</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer\DX12Renderer.h">
+      <Filter>Fichiers d%27en-tête</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer\DX12Pipeline.h">
       <Filter>Fichiers d%27en-tête</Filter>
     </ClInclude>
   </ItemGroup>

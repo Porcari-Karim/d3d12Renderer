@@ -3,6 +3,9 @@
 #include <iostream>
 #include <fstream>
 #include <stdint.h>
+#include <renderer/DX12Mesh.h>
+
+using namespace Microsoft::WRL;
 
 #define ROUND256(structure) (sizeof(structure) + 255 ) & ~ 255
 
@@ -217,6 +220,102 @@ std::vector<char> xwf::DX12Context::ReadBytecodeData(const std::string& filename
     return buffer;
 }
 
+void xwf::DX12Context::PreparePass(std::vector<Mesh> meshes, ID3D12PipelineState* pPipelineState, ID3D12RootSignature* pRootSignature)
+{
+    auto cmdList = m_cmdList;
+    cmdList->SetPipelineState(pPipelineState);
+    cmdList->SetGraphicsRootSignature(pRootSignature);
+
+    unsigned int rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    unsigned int frameIndex = m_swapChain->GetCurrentBackBufferIndex();
+    // 🖼️ Indicate that the back buffer will be used as a render target.
+    D3D12_RESOURCE_BARRIER renderTargetBarrier;
+    renderTargetBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    renderTargetBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+    renderTargetBarrier.Transition.pResource = m_buffers[frameIndex].Get();
+    renderTargetBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+    renderTargetBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+    renderTargetBarrier.Transition.Subresource =
+        D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+    cmdList->ResourceBarrier(1, &renderTargetBarrier);
+
+    D3D12_CPU_DESCRIPTOR_HANDLE
+        rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
+    rtvHandle.ptr = rtvHandle.ptr + (frameIndex * rtvDescriptorSize);
+    cmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+
+
+    // 🎥 Record raster commands.
+    RECT rect;
+    GetWindowRect(xwf::Win32Window::getHWND(), &rect);
+    auto width = rect.right - rect.left;
+    auto height = rect.bottom - rect.top;
+
+    D3D12_VIEWPORT viewport;
+    D3D12_RECT surfaceSize;
+
+    surfaceSize.left = 0;
+    surfaceSize.top = 0;
+    surfaceSize.right = static_cast<LONG>(width);
+    surfaceSize.bottom = static_cast<LONG>(height);
+
+    viewport.TopLeftX = 0.0f;
+    viewport.TopLeftY = 0.0f;
+    viewport.Width = static_cast<float>(width);
+    viewport.Height = static_cast<float>(height);
+    viewport.MinDepth = .1f;
+    viewport.MaxDepth = 1000.f;
+
+    const float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+    cmdList->RSSetViewports(1, &viewport);
+    cmdList->RSSetScissorRects(1, &surfaceSize);
+    cmdList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+    cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    for (auto mesh : meshes)
+    {
+        cmdList->IASetVertexBuffers(0, 1, &mesh.m_vertexBufferView);
+        cmdList->IASetIndexBuffer(&mesh.m_indexBufferView);
+
+        cmdList->DrawIndexedInstanced(mesh.m_vertices.size(), 1, 0, 0, 0);
+    }
+
+
+    // 🖼️ Indicate that the back buffer will now be used to present.
+    D3D12_RESOURCE_BARRIER presentBarrier;
+    presentBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    presentBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+    presentBarrier.Transition.pResource = m_buffers[frameIndex].Get();
+    presentBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+    presentBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+    presentBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+
+    cmdList->ResourceBarrier(1, &presentBarrier);
+}
+
+void xwf::DX12Context::CreateAndSerializeRootSignature(D3D12_ROOT_SIGNATURE_DESC* rootSignatureDesc, ID3D12RootSignature** ppRootSignature)
+{
+    static HRESULT hr;
+
+    ID3DBlob* pSignatureBlob = nullptr;
+    ID3DBlob* pErrorBlob = nullptr;
+    //ComPtr<ID3D12RootSignature> pRootSignature;
+
+    hr = D3D12SerializeRootSignature(rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &pSignatureBlob, &pErrorBlob);
+    if (FAILED(hr))
+    {
+        std::cout << "Failed to serialize Directx12 Root Signature \n";
+        std::exit(-1);
+    }
+
+    hr = m_device->CreateRootSignature(0, pSignatureBlob->GetBufferPointer(), pSignatureBlob->GetBufferSize(), IID_PPV_ARGS(ppRootSignature));
+    if (FAILED(hr))
+    {
+        std::cout << "Failed to create Directx12 Root Signature \n";
+        std::exit(-1);
+    }
+}
+
 void xwf::DX12Context::CreatePipelineState(ID3D12RootSignature* pRootSignature, D3D12_SHADER_BYTECODE vertexShaderBytecode, D3D12_SHADER_BYTECODE pixelShaderBytecode, ID3D12PipelineState** ppPipelineState)
 {
     static HRESULT hr;
@@ -319,25 +418,22 @@ void xwf::DX12Context::TestRendering()
 
     std::vector<uint32_t> indexBufferData = { 0u, 1u, 2u };
 
-    D3D12_HEAP_PROPERTIES heapProps = {};
-    heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+    Mesh triangle;
+    triangle.m_vertices = vertexBufferData;
+    triangle.m_indices = indexBufferData;
 
-    ComPtr<ID3D12Resource> pVertexBuffer;
-    ComPtr<ID3D12Resource> pIndexBuffer;
+    
 
-    D3D12_VERTEX_BUFFER_VIEW vertexBufferView; // To pass to our pipeline;
-    D3D12_INDEX_BUFFER_VIEW indexBufferView;    
-
-    CreateBuffer<Vertex>(vertexBufferData, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, pVertexBuffer.GetAddressOf());
-    vertexBufferView.BufferLocation = pVertexBuffer->GetGPUVirtualAddress();    
-    vertexBufferView.SizeInBytes = vertexBufferData.size() * sizeof(Vertex);
-    vertexBufferView.StrideInBytes = sizeof(Vertex);
+    CreateBuffer<Vertex>(triangle.m_vertices, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, triangle.m_vertexBuffer.GetAddressOf());
+    triangle.m_vertexBufferView.BufferLocation = triangle.m_vertexBuffer->GetGPUVirtualAddress();    
+    triangle.m_vertexBufferView.SizeInBytes = triangle.m_vertices.size() * sizeof(Vertex);
+    triangle.m_vertexBufferView.StrideInBytes = sizeof(Vertex);
 
 
-    CreateBuffer<uint32_t>(indexBufferData, D3D12_RESOURCE_STATE_INDEX_BUFFER, pIndexBuffer.GetAddressOf());
-    indexBufferView.BufferLocation = pIndexBuffer->GetGPUVirtualAddress();
-    indexBufferView.Format = DXGI_FORMAT_R32_UINT;
-    indexBufferView.SizeInBytes = sizeof(indexBufferData);
+    CreateBuffer<uint32_t>(triangle.m_indices, D3D12_RESOURCE_STATE_INDEX_BUFFER, triangle.m_indexBuffer.GetAddressOf());
+    triangle.m_indexBufferView.BufferLocation = triangle.m_indexBuffer->GetGPUVirtualAddress();
+    triangle.m_indexBufferView.Format = DXGI_FORMAT_R32_UINT;
+    triangle.m_indexBufferView.SizeInBytes = triangle.m_indices.size() * sizeof(uint32_t);
 
     // Shaders
     std::vector<char> vertexShaderBlob = ReadBytecodeData("vertex.cso");
@@ -359,7 +455,7 @@ void xwf::DX12Context::TestRendering()
     ID3DBlob* pSignatureBlob = nullptr;
     ID3DBlob* pErrorBlob = nullptr;
     ComPtr<ID3D12RootSignature> pRootSignature;
-
+    /*
     D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &pSignatureBlob, &pErrorBlob);
 
     hr = m_device->CreateRootSignature(0, pSignatureBlob->GetBufferPointer(), pSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&pRootSignature));
@@ -368,6 +464,8 @@ void xwf::DX12Context::TestRendering()
         std::cout << "Failed to create Directx12 Root Signature \n";
         std::exit(-1);
     }
+    */
+    CreateAndSerializeRootSignature(&rootSignatureDesc, pRootSignature.GetAddressOf());
 
     ComPtr<ID3D12PipelineState> pPipelineState;
     CreatePipelineState(pRootSignature.Get(), vertexShaderBytecode, pixelShaderBytecode, pPipelineState.GetAddressOf());
@@ -380,7 +478,7 @@ void xwf::DX12Context::TestRendering()
     cmdList->SetGraphicsRootSignature(pRootSignature.Get());
 
     unsigned int rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-    int frameIndex = m_swapChain->GetCurrentBackBufferIndex();
+    unsigned int frameIndex = m_swapChain->GetCurrentBackBufferIndex();
     // 🖼️ Indicate that the back buffer will be used as a render target.
     D3D12_RESOURCE_BARRIER renderTargetBarrier;
     renderTargetBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -419,13 +517,13 @@ void xwf::DX12Context::TestRendering()
     viewport.MinDepth = .1f;
     viewport.MaxDepth = 1000.f;
 
-    const float clearColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
+    const float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
     cmdList->RSSetViewports(1, &viewport);
     cmdList->RSSetScissorRects(1, &surfaceSize);
     cmdList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
     cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    cmdList->IASetVertexBuffers(0, 1, &vertexBufferView);
-    cmdList->IASetIndexBuffer(&indexBufferView);
+    cmdList->IASetVertexBuffers(0, 1, &triangle.m_vertexBufferView);
+    cmdList->IASetIndexBuffer(&triangle.m_indexBufferView);
 
     cmdList->DrawIndexedInstanced(3, 1, 0, 0, 0);
 

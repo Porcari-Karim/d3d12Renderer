@@ -153,7 +153,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="debug\DXDebugLayer.cpp" />
+    <ClCompile Include="renderer\DX12Pipeline.cpp" />
+    <ClCompile Include="renderer\DX12Renderer.cpp" />
     <ClCompile Include="helpers\d3dx12.h" />
+    <ClCompile Include="renderer\DX12Mesh.cpp" />
     <ClCompile Include="renderer\DX12Context.cpp" />
     <ClCompile Include="window\Input.cpp" />
     <ClCompile Include="Main.cpp" />
@@ -161,11 +164,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug\DXDebugLayer.h" />
+    <ClInclude Include="renderer\DX12Pipeline.h" />
+    <ClInclude Include="renderer\DX12Renderer.h" />
     <ClInclude Include="helpers\Helpers.h" />
+    <ClInclude Include="renderer\DX12Mesh.h" />
     <ClInclude Include="renderer\DX12Context.h" />
-    <ClInclude Include="renderer\XWFContext.h" />
     <ClInclude Include="window\Input.h" />
-    <ClInclude Include="renderer\D3DRenderer.h" />
     <ClInclude Include="window\Win32Window.h" />
     <ClInclude Include="helpers\WinInclude.h" />
     <ClInclude Include="window\WinKeyCodes.h" />
